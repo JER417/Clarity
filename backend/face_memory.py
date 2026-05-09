@@ -60,12 +60,17 @@ class FaceMemory:
 
         enc = encodings[0]
         self._cache[name] = enc
+        
+        print(f"[DEBUG] Storing face for {name}, encoding length: {len(enc)}")
 
         if self.db:
-            self.db.collection(self._collection).document(name).set({
+            data = {
                 "name": name,
                 "encoding": enc.tolist(),
-            })
+            }
+            print(f"[DEBUG] Firebase data: {data}")
+            self.db.collection(self._collection).document(name).set(data)
+            print(f"[DEBUG] Successfully stored {name} in Firebase")
 
         return {"success": True, "name": name}
 

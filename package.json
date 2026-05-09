@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/JER417/Clarity/issues"
   },
-  "homepage": "https://github.com/JER417/Clarity#readme"
+  "homepage": "https://github.com/JER417/Clarity#readme",
+  "dependencies": {
+    "firebase": "^12.13.0"
+  }
 }
