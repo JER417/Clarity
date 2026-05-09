@@ -136,6 +136,56 @@ body {
   50%       { opacity: 0.35; }
 }
 
+/* ── Mic status dot ── */
+.hud-mic-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.hud-mic-dot.listening {
+  background: #60a5fa;
+  box-shadow: 0 0 8px #60a5fa;
+  animation: pulse 1.5s infinite;
+}
+.hud-mic-dot.heard {
+  background: #a78bfa;
+  box-shadow: 0 0 12px #a78bfa;
+}
+
+/* ── Voice command badge ── */
+.voice-badge {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 62px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: rgba(139,92,246,0.25);
+  border: 1px solid rgba(139,92,246,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 24px;
+  padding: 8px 18px 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  max-width: 85vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice-badge.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.voice-badge-icon { font-size: 16px; }
+
 /* ── Person recognition badge ── */
 .person-badge {
   position: absolute;
@@ -633,6 +683,69 @@ body {
   color: var(--danger);
   font-size: 18px;
   padding: 4px 8px;
+}
+
+/* ── Mic button active state ── */
+.btn-mic.active {
+  background: rgba(139,92,246,0.3);
+  border: 1.5px solid rgba(139,92,246,0.7);
+  color: #a78bfa;
+}
+
+/* ── Voice listening overlay ── */
+.voice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.voice-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.voice-overlay-icon {
+  font-size: 64px;
+  position: relative;
+  z-index: 2;
+}
+
+.voice-ripple {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid rgba(139,92,246,0.6);
+  animation: ripple 1.5s ease-out infinite;
+}
+.voice-ripple.delay1 { animation-delay: 0.5s; }
+.voice-ripple.delay2 { animation-delay: 1s; }
+@keyframes ripple {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.voice-overlay-hint {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+.voice-overlay-examples {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+  padding: 0 32px;
 }
 
 /* ── Toast ── */

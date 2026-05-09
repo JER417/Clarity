@@ -25,7 +25,26 @@
       </div>
       <div class="hud-right">
         <span id="modeLabel" class="hud-mode-label">ENTORNO</span>
+        <div id="micDot" class="hud-mic-dot" title="Di: Hey Clarity"></div>
         <div id="statusDot" class="hud-status-dot"></div>
+      </div>
+    </div>
+
+    <!-- Voice command feedback -->
+    <div id="voiceBadge" class="voice-badge">
+      <span class="voice-badge-icon">🎤</span>
+      <span id="voiceBadgeText"></span>
+    </div>
+
+    <!-- Voice listening overlay -->
+    <div id="voiceOverlay" class="voice-overlay">
+      <div class="voice-ripple"></div>
+      <div class="voice-ripple delay1"></div>
+      <div class="voice-ripple delay2"></div>
+      <div class="voice-overlay-icon">🎤</div>
+      <div class="voice-overlay-hint">Di tu comando…</div>
+      <div class="voice-overlay-examples">
+        "Hey Clarity" · "Guarda como María"
       </div>
     </div>
 
@@ -74,11 +93,11 @@
 
     <!-- Side actions -->
     <div class="side-actions">
+      <button id="micBtn" class="btn-side btn-mic" onclick="activateVoiceCommand()" aria-label="Comando de voz">
+        <span>🎤</span>
+      </button>
       <button class="btn-side" onclick="openSocialPanel()" aria-label="Registro social">
         <span>🧠</span>
-      </button>
-      <button class="btn-side" onclick="openMemoryModal()" aria-label="Guardar persona">
-        <span>💾</span>
       </button>
     </div>
   </div>

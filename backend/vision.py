@@ -93,7 +93,7 @@ async def analyze_scene(
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,
                 safety_settings=SAFETY_SETTINGS,
-                max_output_tokens=200,
+                max_output_tokens=350,
                 temperature=0.4,
             ),
         )

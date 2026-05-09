@@ -14,17 +14,25 @@ let currentSource = null;         // AudioBufferSourceNode
 let gpsCoords     = null;
 let stream        = null;
 
-// ── Elements ────────────────────────────────────────────────
-const video         = document.getElementById('video');
-const canvas        = document.getElementById('canvas');
-const responseText  = document.getElementById('responseText');
-const statusDot     = document.getElementById('statusDot');
-const waveIndicator = document.getElementById('waveIndicator');
-const glassesBtn    = document.getElementById('glassesBtn');
-const modeLabel     = document.getElementById('modeLabel');
-const personBadge   = document.getElementById('personBadge');
+// ── Voice state ──────────────────────────────────────────────
+let voiceBadgeTimer = null;
+let isSpeaking      = false;  // browser TTS speaking
+
+// ── Elements ─────────────────────────────────────────────────
+const video           = document.getElementById('video');
+const canvas          = document.getElementById('canvas');
+const responseText    = document.getElementById('responseText');
+const statusDot       = document.getElementById('statusDot');
+const waveIndicator   = document.getElementById('waveIndicator');
+const glassesBtn      = document.getElementById('glassesBtn');
+const modeLabel       = document.getElementById('modeLabel');
+const personBadge     = document.getElementById('personBadge');
 const personBadgeName = document.getElementById('personBadgeName');
-const scanLine      = document.getElementById('scanLine');
+const scanLine        = document.getElementById('scanLine');
+const micDot          = document.getElementById('micDot');
+const voiceBadge      = document.getElementById('voiceBadge');
+const voiceBadgeText  = document.getElementById('voiceBadgeText');
+// voiceOverlay and micBtn are grabbed inside the voice module below
 
 // ── Camera ──────────────────────────────────────────────────
 async function initCamera() {
@@ -87,27 +95,32 @@ async function captureAndDescribe() {
     const form = new FormData();
     form.append('image', blob, 'frame.jpg');
     form.append('mode', currentMode);
-    form.append('tts', 'true');
+    form.append('tts', 'false');   // text-only for speed; browser TTS reads it
     if (gpsCoords) {
       form.append('lat', gpsCoords.lat);
       form.append('lng', gpsCoords.lng);
     }
 
-    const res = await fetch(`${API}/analyze`, { method: 'POST', body: form });
+    // 10-second timeout so mobile doesn't cancel the request
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+
+    let res;
+    try {
+      res = await fetch(`${API}/analyze`, { method: 'POST', body: form, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+
     if (!res.ok) {
       showResponse(`Error del servidor: ${res.status}`, false);
       return;
     }
     const data = await res.json();
 
-    if (!data.text) {
-      showResponse('Respuesta vacía del servidor', false);
-      return;
-    }
-
-    // Rate limit: show message and keep retrying (loop handles the interval)
+    if (!data.text) { showResponse('Respuesta vacía', false); return; }
     if (data.rate_limited) {
-      showResponse('⚠ Cuota de API agotada — activa billing en aistudio.google.com', false);
+      showResponse('⚠ Cuota agotada — activa billing en aistudio.google.com', false);
       return;
     }
 
@@ -117,11 +130,8 @@ async function captureAndDescribe() {
 
     if (data.known_people?.length) showPersonBadge(data.known_people);
 
-    if (data.audio_b64) {
-      playAudio(data.audio_b64);
-    } else {
-      speakFallback(data.text);
-    }
+    // Browser TTS — instant, no network needed, won't timeout
+    speakFallback(data.text);
   } catch (err) {
     console.error('[Clarity]', err);
     showResponse(`Sin conexión al servidor (${err.message})`, false);
@@ -132,17 +142,20 @@ async function captureAndDescribe() {
   }
 }
 
-// Fallback TTS usando el navegador si Gemini TTS falla
+// Browser TTS — fast, offline, no timeout issues
 function speakFallback(text) {
-  if (!window.speechSynthesis || audioCtx) return; // solo si no hay audio de Gemini
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'es-MX';
-  utt.rate = 1.05;
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance(text);
+  utt.lang   = 'es-MX';
+  utt.rate   = 1.1;
+  utt.pitch  = 1;
   const voices = speechSynthesis.getVoices();
   const es = voices.find(v => v.lang.startsWith('es'));
   if (es) utt.voice = es;
-  utt.onstart = () => setWave(true);
-  utt.onend   = () => setWave(false);
+  utt.onstart = () => { setWave(true);  isSpeaking = true;  };
+  utt.onend   = () => { setWave(false); isSpeaking = false; };
+  utt.onerror = () => { setWave(false); isSpeaking = false; };
   speechSynthesis.speak(utt);
 }
 
@@ -165,10 +178,11 @@ function startGlasses() {
   unlockAudio(); // must happen in the same call stack as the tap
   glassesActive = true;
   glassesBtn.classList.add('recording');
-  showToast('Lentes activos');
+  showToast('Lentes activos — toca 🎤 para comandos');
   setTimeout(() => { if (glassesActive) captureAndDescribe(); }, 800);
   glassesTimer = setInterval(() => {
-    if (!isPending) captureAndDescribe();
+    // Wait for speech to finish before next capture so description isn't cut off
+    if (!isPending && !currentSource && !isSpeaking) captureAndDescribe();
   }, LOOP_MS);
 }
 
@@ -411,6 +425,146 @@ async function deletePerson(name) {
     await refreshPeopleList();
   } catch {
     showToast('Error al eliminar');
+  }
+}
+
+// ── Voice commands ───────────────────────────────────────────
+const voiceOverlay = document.getElementById('voiceOverlay');
+const micBtn       = document.getElementById('micBtn');
+let voiceListening = false;
+
+function activateVoiceCommand() {
+  if (voiceListening) return;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Tu navegador no soporta voz'); return; }
+
+  // Pause auto-loop and audio while listening
+  stopAudio();
+  const wasActive = glassesActive;
+  if (wasActive) clearInterval(glassesTimer);
+
+  // Show overlay
+  voiceListening = true;
+  voiceOverlay.classList.add('active');
+  micBtn.classList.add('active');
+
+  const rec = new SR();
+  rec.lang = 'es-MX';
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.maxAlternatives = 5;
+
+  let handled = false;
+
+  rec.onresult = (e) => {
+    const transcripts = Array.from(e.results[0])
+      .map(r => r.transcript.toLowerCase().trim());
+    console.log('[Voice] Escuché:', transcripts);
+    handled = true;
+    closeVoiceOverlay();
+    processVoiceCommand(transcripts, wasActive);
+  };
+
+  rec.onerror = (e) => {
+    console.warn('[Voice] Error:', e.error);
+    if (e.error === 'not-allowed') showToast('Permiso de micrófono denegado');
+    else if (!handled) showVoiceBadge('No escuché nada — intenta de nuevo');
+    handled = true;
+    closeVoiceOverlay(wasActive);
+  };
+
+  rec.onend = () => {
+    if (!handled) {
+      showVoiceBadge('No escuché nada — intenta de nuevo');
+    }
+    closeVoiceOverlay(wasActive);
+  };
+
+  try {
+    rec.start();
+  } catch (err) {
+    showToast('No se pudo activar el micrófono');
+    closeVoiceOverlay(wasActive);
+  }
+}
+
+function closeVoiceOverlay(resumeLoop = false) {
+  voiceListening = false;
+  voiceOverlay.classList.remove('active');
+  micBtn.classList.remove('active');
+  // Resume loop if it was active
+  if (resumeLoop && glassesActive) {
+    glassesTimer = setInterval(() => {
+      if (!isPending) captureAndDescribe();
+    }, LOOP_MS);
+  }
+}
+
+function processVoiceCommand(transcripts, resumeLoop) {
+  // Try each alternative until one matches
+  for (const t of transcripts) {
+    // ── Guardar persona ──────────────────────────────────────
+    const saveMatch =
+      t.match(/guarda(?:r)?\s+a\s+esta\s+persona\s+como\s+(.+)/) ||
+      t.match(/guarda(?:r)?\s+como\s+(.+)/) ||
+      t.match(/guarda\s+a\s+(.+)/);
+
+    if (saveMatch) {
+      const name = saveMatch[1]
+        .replace(/^(a\s+)?(el|la|los|las)\s+/i, '')
+        .replace(/[.,!?]+$/, '')
+        .trim();
+      if (name) {
+        showVoiceBadge(`Guardando a ${name}…`);
+        voiceSavePerson(name, resumeLoop);
+        return;
+      }
+    }
+
+    // ── Describe / Hey Clarity ───────────────────────────────
+    if (/clarity|describe|qué hay|qué ves|analiza|entorno/i.test(t)) {
+      showVoiceBadge('Analizando entorno…');
+      if (!isPending) captureAndDescribe();
+      return;
+    }
+  }
+
+  // No command matched — show what was heard
+  showVoiceBadge(`No entendí: "${transcripts[0]}"`);
+}
+
+function showVoiceBadge(text) {
+  voiceBadgeText.textContent = text;
+  voiceBadge.classList.add('show');
+  clearTimeout(voiceBadgeTimer);
+  voiceBadgeTimer = setTimeout(() => voiceBadge.classList.remove('show'), 3500);
+}
+
+async function voiceSavePerson(name, resumeLoop) {
+  const blob = await captureFrame(0.92);
+  if (!blob) {
+    showVoiceBadge('Sin imagen de cámara');
+    speakFallback('No pude capturar una imagen');
+    return;
+  }
+
+  const form = new FormData();
+  form.append('image', blob, 'face.jpg');
+  form.append('name', name);
+
+  try {
+    const res  = await fetch(`${API}/remember-person`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (data.success) {
+      showVoiceBadge(`✓ ${name} guardado`);
+      speakFallback(`Listo, guardé a ${name}`);
+    } else {
+      showVoiceBadge(data.error || 'No detecté un rostro claro');
+      speakFallback(`No pude guardar a ${name}. ${data.error || 'Inténtalo de nuevo'}`);
+    }
+  } catch {
+    showVoiceBadge('Error al conectar con el servidor');
   }
 }
 
