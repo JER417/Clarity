@@ -10,10 +10,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from face_memory import FaceMemory
+from interaction_log import InteractionLog
 from spatial_memory import SpatialMemory
 from tts import pcm_to_wav, text_to_speech
 from vision import analyze_scene
@@ -29,6 +30,7 @@ app.add_middleware(
 
 face_db = FaceMemory()
 spatial_db = SpatialMemory()
+interaction_log = InteractionLog()
 
 
 @app.get("/health")
@@ -43,7 +45,7 @@ async def health():
 @app.post("/analyze")
 async def analyze(
     image: UploadFile = File(...),
-    mode: str = Form("full"),
+    mode: str = Form("glasses"),
     lat: float = Form(None),
     lng: float = Form(None),
     tts: bool = Form(True),
@@ -61,6 +63,10 @@ async def analyze(
         nearby = spatial_db.get_nearby(lat, lng)
 
     result = await analyze_scene(img_bytes, media_type, mode, known_people, nearby)
+
+    # Log each recognized person with the scene description
+    for person in known_people:
+        interaction_log.log(person, result["text"])
 
     if tts and result.get("text"):
         pcm_bytes = await text_to_speech(result["text"])
@@ -81,16 +87,6 @@ async def remember_person(
     return JSONResponse(result)
 
 
-@app.post("/remember-place")
-async def remember_place(
-    description: str = Form(...),
-    lat: float = Form(...),
-    lng: float = Form(...),
-):
-    result = spatial_db.remember(lat, lng, description)
-    return JSONResponse({**result, "description": description})
-
-
 @app.get("/people")
 async def list_people():
     return {"people": face_db.list_people()}
@@ -102,12 +98,30 @@ async def forget_person(name: str):
     return {"success": success, "name": name}
 
 
-@app.get("/places")
-async def list_places():
-    return {"places": spatial_db.list_all()}
+# ── Interaction log ──────────────────────────────────────────
 
 
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+@app.get("/interactions/summary")
+async def interactions_summary():
+    return {"people": interaction_log.summary()}
+
+
+@app.get("/interactions/{person_name}")
+async def person_interactions(person_name: str):
+    return {"history": interaction_log.person_history(person_name)}
+
+
+@app.get("/interactions")
+async def recent_interactions():
+    return {"interactions": interaction_log.recent()}
+
+
+# ── Static frontend ──────────────────────────────────────────
+
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if not os.path.exists(frontend_path):
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
 

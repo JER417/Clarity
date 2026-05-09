@@ -6,9 +6,8 @@ export default defineConfig({
     proxy: {
       '/analyze': 'http://localhost:8000',
       '/remember-person': 'http://localhost:8000',
-      '/remember-place': 'http://localhost:8000',
       '/people': 'http://localhost:8000',
-      '/places': 'http://localhost:8000',
+      '/interactions': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
     }
   }
