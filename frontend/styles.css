@@ -18,10 +18,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  touch-action: manipulation;
+}
+
+html {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -32,6 +41,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* Center on desktop/tablet */
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* Dark pillar fill on wide screens */
+html {
+  background: #000;
 }
 
 /* ── Header ── */
@@ -89,6 +106,7 @@ body {
 .camera-container {
   position: relative;
   flex: 1;
+  min-height: 0; /* evita que el video expanda el contenedor más allá del flex */
   background: #000;
   overflow: hidden;
 }
@@ -422,7 +440,7 @@ body {
 /* ── Toast ── */
 .toast {
   position: fixed;
-  top: 80px;
+  top: calc(80px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%) translateY(-20px);
   background: var(--surface2);
@@ -456,4 +474,26 @@ body {
   .mode-bar { display: none; }
   .actions { padding: 8px 20px; }
   .btn-analyze { width: 64px; height: 64px; font-size: 24px; }
+}
+
+/* ── Teléfonos pequeños (iPhone SE, 360px, etc.) ── */
+@media (max-width: 360px) {
+  .logo-text { font-size: 18px; }
+  .mode-btn { padding: 8px 10px; min-width: 58px; font-size: 11px; }
+  .mode-btn .icon { font-size: 18px; }
+  .btn-analyze { width: 72px; height: 72px; font-size: 26px; }
+  .btn-secondary { width: 50px; height: 50px; font-size: 20px; }
+  .actions { gap: 18px; padding: 12px 16px 16px; }
+  .response-text { font-size: 14px; }
+}
+
+/* ── Teléfonos grandes (iPhone Pro Max, etc.) ── */
+@media (min-height: 800px) {
+  .response-text { max-height: 160px; }
+  .btn-analyze { width: 92px; height: 92px; font-size: 36px; }
+  .btn-secondary { width: 62px; height: 62px; font-size: 24px; }
+  .actions { padding: 18px 20px 22px; gap: 28px; }
+  .mode-btn { min-height: 70px; padding: 12px 18px; }
+  .mode-btn .icon { font-size: 24px; }
+  .response-text { font-size: 17px; }
 }
