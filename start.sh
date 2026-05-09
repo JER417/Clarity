@@ -1,29 +1,36 @@
 #!/bin/bash
 set -e
 
-echo "=== Clarity — Asistente para personas con discapacidad visual ==="
+echo "=== Clarity — Lentes inteligentes ==="
 echo ""
 
-# Check Python
 if ! command -v python3 &> /dev/null; then
-  echo "ERROR: Python 3 no encontrado"
-  exit 1
+  echo "ERROR: Python 3 no encontrado"; exit 1
 fi
 
-# Check .env
 if [ ! -f ".env" ]; then
-  echo "Creando .env desde .env.example..."
-  cp .env.example .env
-  echo "IMPORTANTE: Agrega tu GEMINI_API_KEY en .env"
+  echo "ERROR: Falta .env con GEMINI_API_KEY"; exit 1
 fi
 
-# Install deps
+# Kill anything on port 8000
+if lsof -ti:8000 &>/dev/null; then
+  echo "Liberando puerto 8000..."
+  lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+  sleep 1
+fi
+
 echo "Instalando dependencias..."
 pip install -r requirements.txt -q
 
-# Run
 echo ""
-echo "Iniciando servidor en http://localhost:8000"
-echo "Para acceso desde celular usa: ngrok http 8000"
+echo "Backend corriendo en http://localhost:8000"
 echo ""
+echo "Para acceso desde el celular, abre UNA NUEVA TERMINAL y corre:"
+echo ""
+echo "  ssh -R 80:localhost:8000 nokey@localhost.run"
+echo ""
+echo "La URL que aparezca (xxxxxx.localhost.run) ábrela en el celular con https://"
+echo ""
+echo "────────────────────────────────────────"
+
 cd backend && python main.py
