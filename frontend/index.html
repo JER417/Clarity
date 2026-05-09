@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>Clarity</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">👁</div>
+      <span class="logo-text">Clarity</span>
+    </div>
+    <div id="statusDot" class="status-dot"></div>
+  </header>
+
+  <!-- Camera -->
+  <div class="camera-container" id="cameraContainer">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+    <div class="camera-overlay">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="scan-line" id="scanLine"></div>
+      <div class="auto-badge" id="autoBadge">AUTO</div>
+    </div>
+
+    <div class="response-area">
+      <div class="wave-indicator" id="waveIndicator">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div class="response-text" id="responseText"></div>
+    </div>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="mode-bar">
+    <button class="mode-btn active" data-mode="full" onclick="setMode('full', this)">
+      <span class="icon">🔍</span>Completo
+    </button>
+    <button class="mode-btn" data-mode="safety" onclick="setMode('safety', this)">
+      <span class="icon">🚦</span>Seguridad
+    </button>
+    <button class="mode-btn" data-mode="describe" onclick="setMode('describe', this)">
+      <span class="icon">🌍</span>Entorno
+    </button>
+    <button class="mode-btn" data-mode="read" onclick="setMode('read', this)">
+      <span class="icon">📖</span>Leer
+    </button>
+    <button class="mode-btn" data-mode="people" onclick="setMode('people', this)">
+      <span class="icon">👥</span>Personas
+    </button>
+  </div>
+
+  <!-- Main actions -->
+  <div class="actions">
+    <button class="btn-secondary" id="autoBtn" title="Modo automático" onclick="toggleAuto()">⏱</button>
+    <button class="btn-analyze" id="analyzeBtn" title="Analizar" onclick="captureAndAnalyze()">
+      <span id="analyzeBtnIcon">👁</span>
+    </button>
+    <button class="btn-secondary" title="Guardar persona / lugar" onclick="openMemoryModal()">💾</button>
+  </div>
+
+  <!-- Memory modal -->
+  <div class="modal-backdrop" id="memoryModal">
+    <div class="modal">
+      <h2>💾 Guardar en memoria</h2>
+
+      <div id="modalFaceSection">
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">
+          Guarda el rostro visible en cámara con un nombre
+        </p>
+        <input class="modal-input" id="personNameInput" type="text" placeholder="Nombre de la persona" maxlength="50" />
+        <button class="modal-submit" onclick="rememberPerson()">Guardar persona</button>
+
+        <div class="people-list" id="peopleList"></div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">
+          Guarda la ubicación actual con una descripción
+        </p>
+        <input class="modal-input" id="placeDescInput" type="text" placeholder="Ej: Entrada de mi casa" maxlength="100" />
+        <button class="modal-submit" onclick="rememberPlace()">Guardar lugar</button>
+      </div>
+
+      <button class="modal-close" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
